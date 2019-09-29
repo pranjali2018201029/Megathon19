@@ -4,7 +4,7 @@ import numpy as np
 
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords
-import porter
+import porter as pt
 
 ## Global Variable to store inverted index
 Inv_Index = {}
@@ -18,7 +18,6 @@ Query_Abstract_List = []
 
 Doc_Id = 0
 
-
 class Abstract:
     def __init__(self, text="", token=[]):
         self.ID = Doc_Id
@@ -28,7 +27,7 @@ class Abstract:
 def Pre_Processing(Abstract):
     
     # case folding
-    Abstract = Abstract.tolower()
+    Abstract = Abstract.lower()
 
     #split into words
     tokenizer = RegexpTokenizer(r'[a-zA-Z0-9]+')
@@ -39,9 +38,9 @@ def Pre_Processing(Abstract):
     words_tokens = [token for token in words_tokens if token not in stop_words]
 
     #stemming
-    stemmed_tokens = porter(words_tokens)
+    words_tokens = [pt.stem(token) for token in words_tokens]
 
-    return stemmed_tokens
+    return words_tokens
 
 def Read_Abstract_file(csv_filename):
     global Doc_Abstract_List
@@ -51,10 +50,10 @@ def Read_Abstract_file(csv_filename):
         data = csv.reader(f)
         
         for abstract_row in data:
-            Doc_Id += 1
-            abstract_tokens = Pre_Processing(abstract_row)
+            abstract_tokens = Pre_Processing(abstract_row[0])
             Abstract_Obj = Abstract(abstract_row, abstract_tokens)
             Doc_Abstract_List.append(Abstract_Obj)
+            Doc_Id += 1
 
 def Read_Query_Abstract(csv_filename):
     global Query_Abstract_List
@@ -62,7 +61,7 @@ def Read_Query_Abstract(csv_filename):
         data = csv.reader(f)
         
         for abstract_row in data:
-            abstract_tokens = Pre_Processing(abstract_row)
+            abstract_tokens = Pre_Processing(abstract_row[0])
             Query_Abstract_List.append(abstract_tokens)
 
 
@@ -86,7 +85,7 @@ def Create_BOW():
 def TF_IDF():
     
     global Inv_Index
-    N = len(Doc_Astract_List)
+    N = len(Doc_Abstract_List)
     
     for term in Inv_Index.keys():
         df = len(Inv_Index[term])
@@ -98,27 +97,31 @@ def TF_IDF():
             tf = Inv_Index[term][DocID]   
             Inv_Index[term][DocID] = tf*idf
 
+
 ## Get Posting Lists for query words and
 ## Tranform Posting lists of words in query abstract into 
 ## Vector representationsn (TF_IDF score) of document abstracts
 
 def Docs_Vec_Transform():
     
+    l = len(Query_Inv_Index.keys())
     Doc_Term_Matrix = {}
-    l = len(Query_Tokens)
     i = 0
+    
     for token in Query_Inv_Index.keys():
-        Posting_List = Inv_Index[token]
-        
-        for DocID in Posting_List.keys():
-                    
-            if DocID not in Doc_Term_Matrix:
-                Doc_Term_Matrix[DocID] = [0]*l
-                
-            Doc_Term_Matrix[DocID][i] = Posting_List[DocID]
+        if token in Inv_Index.keys():
+            Posting_List = Inv_Index[token]
+
+            for DocID in Posting_List.keys():
+
+                if DocID not in Doc_Term_Matrix:
+                    Doc_Term_Matrix[DocID] = [0]*l
+
+                Doc_Term_Matrix[DocID][i] = Posting_List[DocID]
         i += 1
         
     return Doc_Term_Matrix
+
 
 ## Calculate TF-IDF score of Query Abstract, Vector Representation of Query Abstract
 
@@ -138,7 +141,11 @@ def Query_Vec_Transform(Query_Tokens):
     
     for term in Query_Inv_Index.keys(): 
         tf = Query_Inv_Index[term]
-        df = len(Inv_Index[term])
+        
+        df = 0
+        if term in Inv_Index.keys():
+            df = len(Inv_Index[term])
+            
         idf = 0
         if(df>0):
             idf = math.log(N/df)
@@ -146,6 +153,7 @@ def Query_Vec_Transform(Query_Tokens):
         i += 1
         
     return Query_Arr
+          
 
 ## Cosine Similarity fuction : I/P - Two vectors, O/P - Similarity value
 
@@ -155,10 +163,11 @@ def Cosine_Similarity(Query_Vec, Doc_Vec):
     Doc_Arr = np.array(Doc_Vec)
     
     Dot_Product = np.dot(Query_Arr, Doc_Arr)
-    Cosine_Sim = Dot_Product / (np.linalg.norm(Query_Arr)+np.linalg.norm(Doc_Arr))
     
-    return Cosine_Sim
+    Cosine_Sim = Dot_Product / (np.linalg.norm(Query_Arr)*np.linalg.norm(Doc_Arr))
 
+    return Cosine_Sim
+    
 
 ## Create Similarity Matrix
 
@@ -173,7 +182,7 @@ def Create_Similarity_Matrix(Queryfile, Docfile):
     No_Queries = len(Query_Abstract_List)
     No_Docs = len(Doc_Abstract_List)
     
-    Similarity_mat = np.zeroes((No_Queries, No_Docs))
+    Similarity_mat = np.zeros((No_Queries, No_Docs))
     
     for i in range(No_Queries):
         
@@ -181,13 +190,13 @@ def Create_Similarity_Matrix(Queryfile, Docfile):
         Query_Vec = Query_Vec_Transform(Query_Tokens)
         Doc_Term_Matrix = Docs_Vec_Transform()
         
-        for j in range(len(Doc_Term_Matrix)):
-            Doc_Vec = Doc_Term_Matrix[j]
+        for DocID in Doc_Term_Matrix.keys():
+            Doc_Vec = Doc_Term_Matrix[DocID]
             Cosine_Sim = Cosine_Similarity(Query_Vec, Doc_Vec)
-            Similarity_mat[i][j] = Cosine_Sim
+            Similarity_mat[i][DocID] = Cosine_Sim
+            
     return Similarity_mat
 
 
-Similarity_mat = Create_Similarity_Matrix("", "")
+Similarity_mat = Create_Similarity_Matrix("./abstract.csv", "./body_text.csv")
 print(Similarity_mat)
-

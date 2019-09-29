@@ -9,7 +9,7 @@ here,
 Doc_Filepath : Absolute path to the csv file containing documents/articles,
 Abstract_Filepath : Absolute path to the csv file containing given query abstract,
 Summary_Size : Number of sentence in summary obtained from document content, further used to represent in a vector
-                (Possible values: any integer less than no. of lines in a document),
+                (Possible values: any integer less than no. of lines in a document, Give 10 if not sure),
 Abstract_Flag : Optional flag to decide whether to use summary/abstract of document or use whole document without loss. 
                 Default value is 1. (Possible values : 0 or 1)
                 

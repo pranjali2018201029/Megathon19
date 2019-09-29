@@ -102,7 +102,7 @@ def textRank(docNum, abstractLen):
 	s = str(df[docNum-1])
 	print("Document:")
 	print(s)
-	print("\n")
+	print("\n\n")
 	sentences = sent_tokenize(str(s))
 	bagOfWords = {}
 	i = 0

@@ -14,6 +14,7 @@ import networkx as nx
 import scipy
 from scipy.sparse import csr_matrix
 
+import sys
 import porter as pt
 
 
@@ -113,13 +114,13 @@ def textRank(df, docNum, abstractLen):
     bagOfWords = {}
     i = 0
 
-	#For each sentence, clean
+    #For each sentence, clean
     for sentence in sentences:
         tokens = tokenizer.tokenize(sentence)
         finalTokens = {}
         for token in tokens:
             token = token.casefold()
-			#Bag of Words
+            #Bag of Words
             if token not in stopWords and (token.isalpha() or token.isnumeric()):
                 token = porter.stem(token)
                 finalTokens[token] = 1
@@ -127,8 +128,8 @@ def textRank(df, docNum, abstractLen):
             bagOfWords[i] = finalTokens
         i += 1
 
-	#Matrix N*N (N = no. of sentences)
-	#Jaccard similarity for each sentence with each sentence (i,j)
+    #Matrix N*N (N = no. of sentences)
+    #Jaccard similarity for each sentence with each sentence (i,j)
     lenSecSent = 0
     i = 0
     j = 0
@@ -146,12 +147,12 @@ def textRank(df, docNum, abstractLen):
             similarityMatrix[sentence][secondSentence] = j/(len(BOW1) + lenSecSent - j)
             similarityMatrix[secondSentence][sentence] = j/(len(BOW1) + lenSecSent - j)
 
-	#Page rank function
+    #Page rank function
     similarityMatrix = scipy.sparse.csr_matrix(similarityMatrix)
     nx_graph = nx.from_scipy_sparse_matrix(similarityMatrix)
     scores = pagerank(nx_graph, max_iter=1000)
 
-	#Sorting for top documents
+    #Sorting for top documents
     rankedSentences = sorted(((scores[i],s) for i,s in enumerate(sentences)), reverse=True)
 
     abstract = ""
@@ -190,7 +191,7 @@ def Pre_Processing(Abstract):
     return words_tokens
 
 
-def Create_Abstract(csv_filename, Abstract_Size):
+def Create_Abstract(csv_filename, Abstract_Size, Abstract_Flag):
     
     global Doc_Abstract_List
     global Doc_Id
@@ -203,11 +204,10 @@ def Create_Abstract(csv_filename, Abstract_Size):
             df.append(DocData[0])
             
         for i in range(len(df)):
-            Abstract_str = textRank(df, i, Abstract_Size)
-            print("DOCUMENT")
-            print(df[i])
-            print("ABSTRACT")
-            print(Abstract_str)
+            if Abstract_Flag:
+                Abstract_str = textRank(df, i, Abstract_Size)
+            else:
+                Abstract_str = df[i]
             abstract_tokens = Pre_Processing(Abstract_str)
             Abstract_Obj = Abstract(Abstract_str, abstract_tokens)
             Doc_Abstract_List.append(Abstract_Obj)
@@ -349,9 +349,9 @@ def Cosine_Similarity(Query_Vec, Doc_Vec):
 
 ## Create Similarity Matrix
 
-def Create_Similarity_Matrix(Queryfile, Docfile, Abstract_Size):
+def Create_Similarity_Matrix(Queryfile, Docfile, Abstract_Size, Abstract_Flag):
     
-    Create_Abstract(Docfile, Abstract_Size)
+    Create_Abstract(Docfile, Abstract_Size, Abstract_Flag)
     Read_Query_Abstract(Queryfile)
     
     Create_BOW()
@@ -375,6 +375,14 @@ def Create_Similarity_Matrix(Queryfile, Docfile, Abstract_Size):
             
     return Similarity_mat
 
+## Get input parameters as command line argument
+Doc_Filepath = sys.argv[1]
+Abstract_Filepath = sys.argv[2]
+Summary_Size = int(sys.argv[3])
 
-Similarity_mat = Create_Similarity_Matrix("./abstract.csv", "./body_text.csv", 5)
+if len(sys.argv)>4:
+    Abstract_Flag = int(sys.argv[4])
+    
+Similarity_mat = Create_Similarity_Matrix(Abstract_Filepath, Doc_Filepath, Summary_Size, Abstract_Flag = 1)
+# Similarity_mat = Create_Similarity_Matrix("./abstracts.csv", "opinions.csv", 10, Abstract_Flag = True)
 print(Similarity_mat)
